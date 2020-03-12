@@ -1,4 +1,5 @@
 class Game {
+
     constructor(size) {
         this.size = size;
         this.grid = [...Array(size)].map(item => Array(size).fill(0));
@@ -8,41 +9,75 @@ class Game {
     }
 
     output() {
-        sleep(10);
+        sleep(100);
         console.clear();
         this.grid.map((row, x) => {
             let output = '';
             row.map((item, y) => {
-                output += (this.grid[x][y] > 0) ? "•" : "  ";
+                output += (this.grid[x][y] > 0) ? "0" : " ";
             });
             console.log(output);
         });
         console.log("newborn:" + game.newBorn);
-        console.log(game.died);
-        console.log(game.survived);
+        console.log("died:" + game.died);
     }
 
-    checkPosition(x, y) {
-        if (x < 0 || y < 0 || x > this.size - 1 || y > this.size - 1) {
-            return false;
+    getAliveNeighborCount(x, y) {
+        var alive_count = 0;
+        for (let y2 = y - 1; y2 <= y + 1; y2++) {
+            if (y2 < 0 || y2 >= this.size) {
+                continue;
+            }
+            for (let x2 = x - 1; x2 <= x + 1; x2++) {
+                if (x2 == x && y2 == y) {
+                    continue;
+                }
+                if (x2 < 0 || x2 >= this.size) {
+                    continue;
+                }
+                if (this.grid[y2][x2]) {
+                    alive_count += 1;
+                }
+            }
         }
-        return this.grid[x][y] !== undefined && this.grid[x][y] === 1;
+
+        return alive_count;
     }
 
-    doNewBorn(count) {
-        for (let i = 0; i < count; i++) {
-            let x = Math.floor(Math.random() * Math.floor(this.size));
-            let y = Math.floor(Math.random() * Math.floor(this.size));
-            this.grid[x][y] = 1;
-        }
+    newGeneration() {
+        let killQueue = [];
+        let bornQueue = [];
+
+        this.grid.map((row, x) => {
+            row.map((item, y) => {
+                let neighbor_count = this.getAliveNeighborCount(x, y);
+                if (this.grid[y][x] && (neighbor_count < 2 || neighbor_count > 3)) {
+                    killQueue.push([y, x]);
+                }
+                if (!this.grid[y][x] && neighbor_count === 3) {
+                    bornQueue.push([y, x]);
+                }
+            });
+        });
+
+        this.died = killQueue.length;
+        this.newBorn = bornQueue.length;
+
+        killQueue.map((killItem) => {
+            this.grid[killItem[0]][killItem[1]] = 0;
+        });
+
+        bornQueue.map((bornItem) => {
+            this.grid[bornItem[0]][bornItem[1]] = 1;
+        });
     }
 
-    setGrid(x, y, value, grid) {
-        if (x < 0 || y < 0 || x > this.size - 1 || y > this.size - 1) {
-            return false;
-        }
-        grid[x][y] = value;
-        return grid;
+    randomFill() {
+        this.grid.map((row, x) => {
+            row.map((cell, y) => {
+                this.grid[x][y] = Math.floor(Math.random() * (2 - 0)) + 0;
+            });
+        });
     }
 }
 
@@ -57,106 +92,14 @@ function sleep(milliseconds) {
     }
 }
 
+const game = new Game(20);
 
-function isAlive(x, y, game) {
-    let othersAlive = 0
-
-    if (game.checkPosition(x, y + 1)) {
-        othersAlive++;
-    }
-    if (game.checkPosition(x, y - 1)) {
-        othersAlive++;
-    }
-    if (game.checkPosition(x - 1, y)) {
-        othersAlive++;
-    }
-
-    if (game.checkPosition(x + 1, y)) {
-        othersAlive++;
-    }
-    if (game.checkPosition(x - 1, y - 1)) {
-        othersAlive++;
-    }
-    if (game.checkPosition(x - 1, y + 1)) {
-        othersAlive++;
-    }
-    if (game.checkPosition(x + 1, y - 1)) {
-        othersAlive++;
-    }
-    if (game.checkPosition(x + 1, y + 1)) {
-        othersAlive++;
-    }
-    if (othersAlive < 2) {
-        return 0;
-        // return game.setGrid(x, y, 0, grid);
-    }
-    if (othersAlive === 2 || othersAlive === 3) {
-        if (othersAlive === 3) {
-            return 2;
-            // return game.setGrid(x, y, 1, grid);
-        }
-        return 1;
-        // return grid;
-    }
-
-    if (othersAlive > 3) {
-        return 0;
-        // return game.setGrid(x, y, 0, grid);
-    }
-
-
-}
-
-
-function test(game) {
-    let newGrid = [...game.grid];
-    let newBorn = 0;
-    let died = 0;
-    let survived = 0;
-    game.grid.map((row, x) => {
-        row.map((item, y) => {
-            let alive = isAlive(x, y, game);
-            switch (alive) {
-                case 0:
-                    if(game.checkPosition(x,y)){
-                        died++;
-                    }
-                    game.setGrid(x, y, 0, newGrid);
-                    break;
-                case 1:
-                    game.setGrid(x, y, 1, newGrid);
-                    if(game.checkPosition(x,y)){
-                        survived++;
-                    }
-                    break;
-                case 2:
-                    if(!game.checkPosition(x,y)){
-                        newBorn++;
-                    }
-                    game.setGrid(x, y, 1, newGrid);
-                    break;
-            }
-        })
-    });
-    game.grid = newGrid;
-    game.newBorn = newBorn;
-    game.died = died;
-    game.survived = survived;
-}
-
-
-
-const game = new Game(12);
-
-function go() {
-    test(game);
-    game.output();
-}
-
-game.doNewBorn(4);
-game.newBorn = 1;
+game.randomFill();
+game.newGeneration();
+game.output();
 let i = 0;
 while (game.newBorn > 0) {
-    go(game);
-    console.log("iterations:"+ i++);
+    game.newGeneration();
+    game.output();
+    console.log("iterations:" + i++);
 }
